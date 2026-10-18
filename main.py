@@ -93,7 +93,8 @@ def calculate(
     a: float,
     b: float,
     operation: Operation = Operation.add,
-    precision: int = Query(default=2, ge=0, le=10, description="Decimal places"),
+    precision: int = Query(default=2, ge=0, le=10,
+                           description="Decimal places"),
 ):
     if operation == Operation.add:
         result = a + b
@@ -104,7 +105,8 @@ def calculate(
     else:
         if b == 0:
             # Raising HTTPException returns a proper error status to the caller.
-            raise HTTPException(status_code=400, detail="Cannot divide by zero")
+            raise HTTPException(
+                status_code=400, detail="Cannot divide by zero")
         result = a / b
     return {"operation": operation, "result": round(result, precision)}
 
@@ -119,7 +121,8 @@ class ItemIn(BaseModel):
     name: str = Field(min_length=1, max_length=100, examples=["Laptop"])
     price: float = Field(gt=0, examples=[999.99])
     quantity: int = Field(default=1, ge=1, examples=[2])
-    description: str | None = Field(default=None, examples=["14 inch, 16GB RAM"])
+    description: str | None = Field(
+        default=None, examples=["14 inch, 16GB RAM"])
 
 
 class ItemOut(ItemIn):
@@ -135,7 +138,8 @@ next_id = 1
 @app.post("/items", response_model=ItemOut, status_code=status.HTTP_201_CREATED)
 def create_item(item: ItemIn):
     global next_id
-    new_item = ItemOut(id=next_id, total=round(item.price * item.quantity, 2), **item.model_dump())
+    new_item = ItemOut(id=next_id, total=round(
+        item.price * item.quantity, 2), **item.model_dump())
     items_db[next_id] = new_item
     next_id += 1
     return new_item
@@ -149,15 +153,18 @@ def list_items(limit: int = Query(default=10, ge=1, le=100)):
 @app.get("/items/{item_id}", response_model=ItemOut)
 def get_item(item_id: int):
     if item_id not in items_db:
-        raise HTTPException(status_code=404, detail=f"Item {item_id} not found")
+        raise HTTPException(
+            status_code=404, detail=f"Item {item_id} not found")
     return items_db[item_id]
 
 
 @app.put("/items/{item_id}", response_model=ItemOut)
 def update_item(item_id: int, item: ItemIn):
     if item_id not in items_db:
-        raise HTTPException(status_code=404, detail=f"Item {item_id} not found")
-    updated = ItemOut(id=item_id, total=round(item.price * item.quantity, 2), **item.model_dump())
+        raise HTTPException(
+            status_code=404, detail=f"Item {item_id} not found")
+    updated = ItemOut(id=item_id, total=round(
+        item.price * item.quantity, 2), **item.model_dump())
     items_db[item_id] = updated
     return updated
 
@@ -165,4 +172,15 @@ def update_item(item_id: int, item: ItemIn):
 @app.delete("/items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_item(item_id: int):
     if items_db.pop(item_id, None) is None:
-        raise HTTPException(status_code=404, detail=f"Item {item_id} not found")
+        raise HTTPException(
+            status_code=404, detail=f"Item {item_id} not found")
+
+# ---------------------------------------------------------------------------
+# 7. Your first endpoint shipped through the CI/CD pipeline.
+#    GET /square/7  ->  {"number": 7, "square": 49}
+# ---------------------------------------------------------------------------
+
+
+@app.get("/square/{number}")
+def square(number: int):
+    return {"number": number, "square": number * number}

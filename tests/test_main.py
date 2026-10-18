@@ -39,24 +39,28 @@ def test_query_validation_error():
 
 
 def test_calculate_divide():
-    response = client.get("/calculate", params={"a": 10, "b": 3, "operation": "divide", "precision": 3})
+    response = client.get(
+        "/calculate", params={"a": 10, "b": 3, "operation": "divide", "precision": 3})
     assert response.json()["result"] == 3.333
 
 
 def test_calculate_divide_by_zero():
-    response = client.get("/calculate", params={"a": 1, "b": 0, "operation": "divide"})
+    response = client.get(
+        "/calculate", params={"a": 1, "b": 0, "operation": "divide"})
     assert response.status_code == 400
 
 
 def test_item_crud():
-    created = client.post("/items", json={"name": "Laptop", "price": 500, "quantity": 2})
+    created = client.post(
+        "/items", json={"name": "Laptop", "price": 500, "quantity": 2})
     assert created.status_code == 201
     item = created.json()
     assert item["total"] == 1000
 
     assert client.get(f"/items/{item['id']}").json()["name"] == "Laptop"
 
-    updated = client.put(f"/items/{item['id']}", json={"name": "Laptop", "price": 400, "quantity": 2})
+    updated = client.put(
+        f"/items/{item['id']}", json={"name": "Laptop", "price": 400, "quantity": 2})
     assert updated.json()["total"] == 800
 
     assert client.delete(f"/items/{item['id']}").status_code == 204
@@ -66,3 +70,9 @@ def test_item_crud():
 def test_item_validation_error():
     response = client.post("/items", json={"name": "", "price": -5})
     assert response.status_code == 422
+
+
+def test_square():
+    response = client.get("/square/7")
+    assert response.status_code == 200
+    assert response.json() == {"number": 7, "square": 49}

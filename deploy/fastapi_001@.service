@@ -1,0 +1,24 @@
+# systemd "template" unit: one file, many instances.
+#   fastapi_001@uat.service  -> %i = uat
+#   fastapi_001@prod.service -> %i = prod
+# Copied to /etc/systemd/system/ with scp (see deploy/server-setup.sh)
+
+[Unit]
+Description=FastAPI_001 (%i)
+After=network.target
+
+[Service]
+User=deploy
+Group=deploy
+WorkingDirectory=/opt/fastapi_001/%i/current
+EnvironmentFile=/opt/fastapi_001/%i/.env
+EnvironmentFile=-/opt/fastapi_001/%i/current/.release
+# Listens on localhost only; Apache is the public entry point.
+ExecStart=/opt/fastapi_001/%i/current/.venv/bin/uvicorn main:app \
+    --host 127.0.0.1 --port ${PORT} --workers 2 \
+    --proxy-headers --forwarded-allow-ips 127.0.0.1
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,57 @@
+# =============================================================================
+# CI/CD pipeline
+#
+#   Pull request to main ─► test
+#   Push/merge to main   ─► test ─► deploy UAT ─► (human approval) ─► deploy PROD
+#
+# Each "job" runs on a fresh GitHub-hosted Linux machine. `needs:` chains them,
+# so a failing step stops everything after it.
+# =============================================================================
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: # adds a "Run workflow" button in the Actions tab
+
+# Never run two deployments of the same branch at once.
+concurrency:
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Automated tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12" # same version as the server
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - run: pip install -r requirements-dev.txt
+      - run: pytest -v
+
+  deploy-uat:
+    name: Deploy to UAT
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: uat
+      server_env: uat
+      url: https://uat-api.technostudies.com
+    secrets: inherit
+
+  deploy-prod:
+    name: Deploy to Production
+    needs: deploy-uat
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: production # this GitHub Environment requires an approval
+      server_env: prod
+      url: https://api.technostudies.com
+    secrets: inherit

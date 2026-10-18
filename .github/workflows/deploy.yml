@@ -1,0 +1,57 @@
+# =============================================================================
+# Reusable deployment workflow, called by ci-cd.yml once per environment.
+#
+# `environment:` links the job to a GitHub Environment (Settings → Environments).
+# If that environment has "Required reviewers", the job waits for approval
+# before any step runs.
+# =============================================================================
+name: Deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: GitHub Environment name (uat / production)
+        required: true
+        type: string
+      server_env:
+        description: Folder name on the server (uat / prod)
+        required: true
+        type: string
+      url:
+        description: Public URL of this environment
+        required: true
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ inputs.url }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up SSH key
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Deploy on server
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
+        run: |
+          ssh "deploy@$SSH_HOST" \
+            "bash -s -- ${{ inputs.server_env }} $GITHUB_SHA $REPO_URL" < deploy/deploy.sh
+
+      - name: Smoke test public URL
+        run: |
+          body="$(curl -fsS --retry 5 --retry-delay 2 "${{ inputs.url }}/health")"
+          echo "$body"
+          echo "$body" | grep -q "\"version\":\"${GITHUB_SHA::7}\""
